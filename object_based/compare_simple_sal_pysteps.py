@@ -92,7 +92,7 @@ print(' i.e. < 10 grid points, contrary to expectation that pysteps merges objec
 print('----------------------------------')
 
 print('----------------------------------')
-print('Example prediction 3: as prediction 2 but 2nd object shifted by 1 extra grid ')
+print('Example prediction 3: as prediction 2 but 2nd object shifted by 1 extra grid box')
 # Prediction
 imageP1=np.zeros([35, 45])
 imageP1[1:4,1:20]=1.0
