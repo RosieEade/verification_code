@@ -10,6 +10,7 @@ Prediction vs Target (truth)
     - compute Pearson correlation metric on numpy arrays
       over all or subset of axes
 
+Copyright (c) 2026 Klima consulting
 Author: Rosie Eade
  
 """
@@ -22,7 +23,8 @@ import numpy as np
 def calculate_error_nparray(arr0, arr1, axis=0, typeerror='rmse'):
     """
     Calculate (rms) error between 2 N-dimensional numpy arrays
-    R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -64,7 +66,8 @@ def calculate_error_nparray(arr0, arr1, axis=0, typeerror='rmse'):
 def calculate_pearsoncorr_nparray(arr0, arr1, axis=0):
     """
     Calculate Pearson correlation between 2 N-dimensional numpy arrays
-    R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------

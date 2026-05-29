@@ -1,12 +1,18 @@
 '''
-Compare simple_sal to pysteps.verification.salscores.sal
-R. Eade
+Example comparison of simple_sal to pysteps version:
+https://pysteps.readthedocs.io/en/latest/generated/pysteps.verification.salscores.sal.html
+* Will need to first install pysteps
+
+- simple_sal generally consistent with pysteps sal
+- but treats close objects differently
+--- simple_sal retains all objects, regardless of proximity
+--- pysteps sal appears to reject objects that are too close to another object
+
+Copyright (c) 2026 Klima consulting
+Author: Rosie Eade
 
 '''
 
-
-import os
-import datetime
 import numpy as np
 
 import simple_sal as my_sal
@@ -47,7 +53,7 @@ print('P1 my_sal SAL scores')
 print(mysalP1)
 print('P1 pysteps SAL scores')
 print(pysalP1)
-print('Example prediction 1: Idential SAL score values')
+print('Example prediction 1: Identical SAL score values')
 print('------------')
 print('P1 my_sal SAL objects')
 print(myobjP1)
@@ -103,7 +109,7 @@ print('P1 my_sal SAL scores')
 print(mysalP1)
 print('P1 pysteps SAL scores')
 print(pysalP1)
-print('Example prediction 3: Idential SAL score values')
+print('Example prediction 3: Identical SAL score values')
 print('------------')
 print('P1 my_sal SAL objects')
 print(myobjP1)

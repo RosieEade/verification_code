@@ -3,17 +3,18 @@ Code to compute SAL score for pairs of lat/lon gridded fields:
 Prediction and Target (truth)
 
     compute_sal_xr()
-    - compute SAL score for multiple timesteps of fields
+    - compute SAL score for multiple timesteps of lat/lon fields
       in an xarray Dataset
 
     compute_sal()
-    - compute SAL score for single pair of fields
+    - compute SAL score for single pair of lat/lon fields
       in a numpy array
     - Option to also plot objects for single fields
 
 Plotting code also provided for standard summary plots
 of SAL scores computed over multiple timesteps
 
+Copyright (c) 2026 Klima consulting
 Author: Rosie Eade
  
 """
@@ -38,7 +39,8 @@ import matplotlib.pyplot as plt
 def calculate_error_nparray(arr0, arr1, axis=0, typeerror='rmse'):
     """
     Calculate (rms) error between 2 N-dimensional numpy arrays
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -80,7 +82,8 @@ def calculate_error_nparray(arr0, arr1, axis=0, typeerror='rmse'):
 def calculate_pearsoncorr_nparray(arr0, arr1, axis=0):
     """
     Calculate Pearson correlation between 2 N-dimensional numpy arrays
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -131,7 +134,8 @@ def calc_3dradius_sal(sal_vals, percentile: float | None = None):
     percentile (if not None)
     e.g. percentile=5: computes the radius that contains best 5% 
     of timesteps (smaller radius suggests better prediction)
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -191,7 +195,8 @@ def compute_sal_xr(
     - fixed thresholds independent of input data
     - different minimum object size thresholds
     - different structure for neighbour definitions    
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -334,7 +339,8 @@ def compute_sal(
     - fixed thresholds independent of input data
     - different minimum object size thresholds
     - different structure for neighbour definitions    
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -756,7 +762,8 @@ def plot_sal_objects_map_contourf(
     Plot SAL objects in prediction and target fields (single pair).
     Target (Truth) shaded in colours, Prediction as contour lines, and
     SAL scores in title.
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -849,7 +856,8 @@ def plot_input_and_objects_map(
     """
     Plot input prediction and target fields (single pair) and also the 
     SAL objects for each, with SAL scores in title.
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -1011,7 +1019,8 @@ def plot_3d_sal_scatter(
     representing Location (z)
     As in Wernli et al., 2008
     journals.ametsoc.org/view/journals/mwre/136/11/2008mwr2415.1.xml
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -1130,7 +1139,8 @@ def plot_matrix_1d_sal_pdf(
     Location as a column of pdf plots over multiple timesteps for a list
     of different prediction models in different colours. Also option to
     include a pdf of the 3d radii compute from s, a and l.
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -1270,7 +1280,8 @@ def plot_1d_sal_pdf(
     """
     Plot pdf histogram of input data values for a list of different 
     prediction models in different colours.
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -1509,7 +1520,8 @@ def plot_matrix_2d_sal_pdf(
     Amplitude vs Structure
     Amplitude vs Location
     Locations vs Structure
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
@@ -1634,7 +1646,8 @@ def plot_2d_sal_pdf(
     print_crange=False):
     """
     Plot 2d PDF of a pair of variables, comparing predictions to target
-    Added by R. Eade.
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
 
     Parameters:
     -----------
