@@ -3,8 +3,8 @@ Code to compute SAL score for pairs of lat/lon gridded fields:
 Prediction and Target (truth)
 
     compute_sal_xr()
-    - compute SAL score for multiple timesteps of lat/lon fields
-      in an xarray Dataset
+    - compute SAL score for multiple timesteps and/or members
+      of lat/lon fields in an xarray Dataset
 
     compute_sal()
     - compute SAL score for single pair of lat/lon fields
@@ -68,13 +68,22 @@ def calculate_error_nparray(arr0, arr1, axis=0, typeerror='rmse'):
     if not typeerror in error_list:
         raise ValueError(f"typeerror not recognised: {typeerror}")
     
+    # Mask positions where either array is NaN, so both are excluded pairwise
+    nan_mask = np.isnan(arr0) | np.isnan(arr1)
+    arr0 = np.where(nan_mask, np.nan, arr0)
+    arr1 = np.where(nan_mask, np.nan, arr1)
+
     # Compute Error over axis/axes specified
     # - subtract first then take mean so consistent method for bias and rmse
     # - better level of accuracy than taking means then subtract (slight difference)
-    if typeerror=='bias': output_error = (arr1-arr0).mean(axis=axis)
-    if typeerror=='abias': output_error = np.abs(arr1-arr0).mean(axis=axis)
-    if typeerror=='rmse': output_error = np.sqrt(((arr1-arr0)**2).mean(axis=axis))
-    if typeerror=='ratio': output_error = arr1.mean(axis=axis)/arr0.mean(axis=axis)
+    if typeerror=='bias':
+        output_error = np.nanmean(arr1-arr0, axis=axis)
+    if typeerror=='abias':
+        output_error = np.nanmean(np.abs(arr1-arr0), axis=axis)
+    if typeerror=='rmse':
+        output_error = np.sqrt(np.nanmean((arr1-arr0)**2, axis=axis))
+    if typeerror=='ratio':
+        output_error = np.nanmean(arr1, axis=axis)/np.nanmean(arr0, axis=axis)
     
     return output_error
 
@@ -106,13 +115,18 @@ def calculate_pearsoncorr_nparray(arr0, arr1, axis=0):
     if arr0.shape != arr1.shape:
         raise ValueError(f"Shape mismatch: {arr0.shape} vs {arr1.shape}")
     
+    # Mask positions where either array is NaN, so both are excluded pairwise
+    nan_mask = np.isnan(arr0) | np.isnan(arr1)
+    arr0 = np.where(nan_mask, np.nan, arr0)
+    arr1 = np.where(nan_mask, np.nan, arr1)
+
     # Center the data over axis/axes specified
-    arr0_centered = arr0 - arr0.mean(axis=axis, keepdims=True)
-    arr1_centered = arr1 - arr1.mean(axis=axis, keepdims=True)
+    arr0_centered = arr0 - np.nanmean(arr0, axis=axis, keepdims=True)
+    arr1_centered = arr1 - np.nanmean(arr1, axis=axis, keepdims=True)
     
     # Compute correlation over axis/axes specified
-    numerator = (arr0_centered * arr1_centered).sum(axis=axis)
-    denominator = (arr0_centered**2).sum(axis=axis) * (arr1_centered**2).sum(axis=axis)
+    numerator = np.nansum(arr0_centered * arr1_centered, axis=axis)
+    denominator = np.nansum(arr0_centered**2, axis=axis) * np.nansum(arr1_centered**2, axis=axis)
     denominator = np.sqrt(denominator)
 
     # Avoid division by zero (set as 0.0 instead of inf or nan)
@@ -145,7 +159,7 @@ def calc_3dradius_sal(sal_vals, percentile: float | None = None):
         .sal_a = amplitude
         .sal_l = location
     percentile : float | None
-        Given a float, compute that percentile from set of radii
+        Given float in [0,100], compute that percentile from set of radii
         Given None, output all radii 
 
     Returns:
@@ -163,13 +177,20 @@ def calc_3dradius_sal(sal_vals, percentile: float | None = None):
             print(f"{percentile} thus output all radii instead")
             percentile=None
 
-    ntime=sal_vals.sal_s.shape[0]
-    rad_all=np.zeros(ntime)
-    for dd in range(ntime):
-        rad_all[dd]=np.square(sal_vals.sal_s[dd].values)
-        rad_all[dd]=rad_all[dd]+np.square(sal_vals.sal_a[dd].values)
-        rad_all[dd]=rad_all[dd]+np.square(sal_vals.sal_l[dd].values)
+    # Flatten input DataArrays to numpy arrays
+    orig_shape = sal_vals.sal_s.values.shape
+    n_total=np.prod(orig_shape)
+    sal_s=sal_vals.sal_s.values.reshape(n_total)
+    sal_a=sal_vals.sal_a.values.reshape(n_total)
+    sal_l=sal_vals.sal_l.values.reshape(n_total)
+    rad_all=np.zeros(n_total)
+    for dd in range(n_total):
+        rad_all[dd]=np.square(sal_s[dd])
+        rad_all[dd]=rad_all[dd]+np.square(sal_a[dd])
+        rad_all[dd]=rad_all[dd]+np.square(sal_l[dd])
         rad_all[dd]=np.sqrt(rad_all[dd])
+    # Reshape results back to the original dimensions shape
+    rad_all=rad_all.reshape(orig_shape)
     
     if percentile==None: return rad_all 
     else: return np.nanpercentile(rad_all,percentile)
@@ -184,7 +205,10 @@ def compute_sal_xr(
     thr_factor=None, 
     minFac=None, 
     minsize=0, 
-    structure=np.ones((3, 3), dtype=int)):
+    structure=np.ones((3, 3), dtype=int),
+    lat_name='lat',
+    lon_name='lon',
+    member_name=None):
 
     '''
     Compute SAL score wrt given threhold(s)
@@ -194,16 +218,21 @@ def compute_sal_xr(
     Extended to allow the use of:
     - fixed thresholds independent of input data
     - different minimum object size thresholds
-    - different structure for neighbour definitions    
+    - different structure for neighbour definitions 
+    **If prediction_xr is an ensemble, member_name must be specified to
+    match the name of the member dimensions and lat_name and lon_name
+    must also be correctly specified
     Copyright (c) 2026 Klima consulting
     Author: Rosie Eade
 
     Parameters:
     -----------
-    prediction : numpy.ndarray
-        Prediction field data as 3d [time, lat, lon] array
-    target : xr.Dataset
-        Target field data, same shape as prediction
+    prediction_xr : numpy.ndarray
+        Prediction field data. Must contain 'lat' and 'lon' dimensions,
+        plus any number of leading dimensions (e.g. [time, lat, lon] or
+        [time, realization, lat, lon]).
+    target_xr : xr.Dataset
+        Target field data, same shape as prediction_xr
     eThreshFix : float | None
         Fixed threshold to be used to define event (same units as target)
         If eThreshFix value given, this overrides quantile based options
@@ -228,12 +257,19 @@ def compute_sal_xr(
         2 Options:
         np.ones((3, 3), dtype=int) # Orthogonal and diagonal (default)
         np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]]) # Orthogonal only
+    lat_name : str
+        Define name of latitude dimension e.g. 'lat' or 'y'
+    lon_name : str
+        Define name of longitude dimension e.g. 'lon' or 'x'
+    member_name : str | None
+        Define name of member dimension (ensemble prediction) eg 'member'
     
     Returns:
     --------
     xr.Dataset
         Arrays of SAL scores for input target and prediction field pairs
-        (np.nan if no objects found)
+        (np.nan if no objects found). Has the same leading dimensions as
+        the input arrays, e.g. [time] or [time, realization].
         .sal_s = structure
         .sal_a = amplitude
         .sal_l = location
@@ -260,13 +296,75 @@ def compute_sal_xr(
 
     '''
   
+    # Validate spatial dim names exist in the input
+    for name, xr_obj in [(lat_name, target_xr), (lon_name, target_xr),
+                         (lat_name, prediction_xr), (lon_name, prediction_xr)]:
+        if name not in xr_obj.dims:
+            raise ValueError(
+                f"Spatial dimension '{name}' not found in dims {list(xr_obj.dims)}. "
+                f"Use lat_name/lon_name to specify the correct dimension names."
+            )
+
+    spatial_dims = {lat_name, lon_name}
+
+    # Detect if ensemble dim present in prediction but not target, and expand
+    # target to match using expand_dims + broadcast
+    extra_member_dim = None
+    if member_name in prediction_xr.dims and member_name not in target_xr.dims:
+        extra_member_dim = member_name
+
+    if extra_member_dim is not None:
+        target_xr = target_xr.expand_dims(
+            {extra_member_dim: prediction_xr[extra_member_dim]}
+        )
+        target_xr = target_xr.broadcast_like(prediction_xr)
+
     if target_xr.values.shape != prediction_xr.values.shape:
         raise ValueError(
-            f"Shape mismatch: Target ({target_xr.values.shape},"
-            f"Prediction {prediction_xr.values.shape})"
+            f"Shape mismatch: Target ({target_xr.values.shape}), "
+            f"Prediction ({prediction_xr.values.shape})"
         )
-        
-    ntime=target_xr.values.shape[0]
+
+    # Identify spatial vs leading dimensions
+    all_dims = list(prediction_xr.dims)
+    leading_dims = [d for d in all_dims if d not in spatial_dims]
+
+    # --- Special case: no leading dimensions, single [lat, lon] field ---
+    if not leading_dims:
+        sal_tmp, _, _ = compute_sal(
+            prediction_xr.values,
+            target_xr.values,
+            eThreshFix=eThreshFix,
+            eThreshPrFix=eThreshPrFix,
+            thr_factor=thr_factor,
+            thr_quantile=thr_quantile,
+            minFac=minFac,
+            minsize=minsize,
+            structure=structure
+        )
+        return xr.Dataset({
+            "sal_s":        sal_tmp.sal_s,
+            "sal_a":        sal_tmp.sal_a,
+            "sal_l":        sal_tmp.sal_l,
+            "sal_l1":       sal_tmp.sal_l1,
+            "sal_l2":       sal_tmp.sal_l2,
+            "sal_targ_num": sal_tmp.sal_targ_num,
+            "sal_pred_num": sal_tmp.sal_pred_num,
+        })
+
+    # Transpose to ensure leading dims come first, spatial dims last:
+    # [...leading, lat_name, lon_name]
+    ordered_dims = leading_dims + [lat_name, lon_name]
+    target_xr     = target_xr.transpose(*ordered_dims)
+    prediction_xr = prediction_xr.transpose(*ordered_dims)
+
+    # Flatten all leading dims into a single axis for iteration
+    leading_shape = target_xr.values.shape[:-2]  # e.g. (ntime,) or (ntime, nrealization)
+    spatial_shape = target_xr.values.shape[-2:]   # (nlat, nlon)
+    n_total = int(np.prod(leading_shape))
+
+    target_flat     = target_xr.values.reshape(n_total, *spatial_shape)
+    prediction_flat = prediction_xr.values.reshape(n_total, *spatial_shape)
     
     sal_s=[]
     sal_a=[]
@@ -276,13 +374,10 @@ def compute_sal_xr(
     sal_targ_n=[]
     sal_pred_n=[]
     
-    for tcount in range(ntime):
-        target_np=target_xr.values[tcount]
-        prediction_np=prediction_xr.values[tcount]
-                        
+    for tcount in range(n_total):
         sal_tmp, targ_obj, pred_obj = compute_sal(
-            prediction_np, 
-            target_np, 
+            prediction_flat[tcount], 
+            target_flat[tcount], 
             eThreshFix=eThreshFix, 
             eThreshPrFix=eThreshPrFix, 
             thr_factor=thr_factor, 
@@ -299,16 +394,26 @@ def compute_sal_xr(
         sal_targ_n.append(sal_tmp.sal_targ_num)
         sal_pred_n.append(sal_tmp.sal_pred_num)
 
-    sal_all = xr.Dataset({
-            "sal_s": ("time", np.array(sal_s)),
-            "sal_a": ("time", np.array(sal_a)),
-            "sal_l": ("time", np.array(sal_l)),
-            "sal_l1": ("time", np.array(sal_l1)),
-            "sal_l2": ("time", np.array(sal_l2)),
-            "sal_targ_num": ("time", np.array(sal_targ_n)),
-            "sal_pred_num": ("time", np.array(sal_pred_n))})
+    # Reshape results back to the leading dimensions shape
+    def to_array(lst):
+        return np.array(lst).reshape(leading_shape)
 
-    sal_all['time'] = target_xr['time']
+    sal_all = xr.Dataset(
+        {
+            "sal_s":        (leading_dims, to_array(sal_s)),
+            "sal_a":        (leading_dims, to_array(sal_a)),
+            "sal_l":        (leading_dims, to_array(sal_l)),
+            "sal_l1":       (leading_dims, to_array(sal_l1)),
+            "sal_l2":       (leading_dims, to_array(sal_l2)),
+            "sal_targ_num": (leading_dims, to_array(sal_targ_n)),
+            "sal_pred_num": (leading_dims, to_array(sal_pred_n)),
+        }
+    )
+
+    # Restore coordinates for all leading dimensions
+    for dim in leading_dims:
+        if dim in prediction_xr.coords:
+            sal_all[dim] = prediction_xr[dim]
 
     return sal_all
 
@@ -1051,9 +1156,11 @@ def plot_3d_sal_scatter(
 
     fig, ax = plt.subplots(figsize=(FIGWIDTH,FIGHEIGHT), layout='constrained')
 
-    x=sal_vals.sal_s
-    y=sal_vals.sal_a
-    z=sal_vals.sal_l
+    # Flatten input DataArrays to numpy arrays
+    n_total=np.prod(sal_vals.sal_s.values.shape)
+    x=sal_vals.sal_s.values.reshape(n_total)
+    y=sal_vals.sal_a.values.reshape(n_total)
+    z=sal_vals.sal_l.values.reshape(n_total)
     xlab='Structure'
     ylab='Amplitude'
     zlab='Location'
@@ -1177,8 +1284,7 @@ def plot_matrix_1d_sal_pdf(
         1 : As above but use random subset of data # approx
         2 : gaussian_filter1d from scipy.ndimage # Much faster
     InclPerc : float | None
-        > 0: include InclPerc %tile P of score in legend (l and r)
-        < 0: include -InclPerc %tile AP of abs(score) in legend (s and a)
+        Given float in [0,100], include this %tile P of score in legend
         0 or None: don't include
     InclMN : boolean
         True: include pdf mean in legend
@@ -1203,6 +1309,9 @@ def plot_matrix_1d_sal_pdf(
     """
 
     len_sal_list=len(sal_list)
+    
+    if not isinstance(InclPerc, (int, float)): InclPerc=0
+    if InclPerc < 0: InclPerc=0
 
     # Set up figure (nrows, ncols, ...)
     nrows=3
@@ -1212,9 +1321,13 @@ def plot_matrix_1d_sal_pdf(
     if density is True: y_label='density'
     if density is False: y_label='frequency'
 
+    # Flatten (reshape) input DataArrays to 1d numpy arrays
+
     ax = axes[0, 0] # Row, Col
     d_list=[]
-    for lcount in range(len_sal_list): d_list.append(sal_list[lcount].sal_s.values)
+    for lcount in range(len_sal_list):
+        n_total=np.prod(sal_list[lcount].sal_s.values.shape)
+        d_list.append(sal_list[lcount].sal_s.values.reshape(n_total))
     plot_1d_sal_pdf(d_list, ax, color_list, label_list, bins = bins_list[0],
         density=density, log=log, InclKDE=InclKDE, KDEapprox=KDEapprox, 
         InclPerc=-1*InclPerc, InclMN=InclMN, InclSD=InclSD, 
@@ -1223,7 +1336,9 @@ def plot_matrix_1d_sal_pdf(
 
     ax = axes[1, 0] # Row, Col
     d_list=[]
-    for lcount in range(len_sal_list): d_list.append(sal_list[lcount].sal_a.values)
+    for lcount in range(len_sal_list):
+        n_total=np.prod(sal_list[lcount].sal_a.values.shape)
+        d_list.append(sal_list[lcount].sal_a.values.reshape(n_total))
     plot_1d_sal_pdf(d_list, ax, color_list, label_list, bins = bins_list[1],
         density=density, log=log, InclKDE=InclKDE, KDEapprox=KDEapprox, 
         InclPerc=-1*InclPerc, InclMN=InclMN, InclSD=InclSD, 
@@ -1232,19 +1347,22 @@ def plot_matrix_1d_sal_pdf(
     
     ax = axes[2, 0] # Row, Col
     d_list=[]
-    for lcount in range(len_sal_list): d_list.append(sal_list[lcount].sal_l.values)
+    for lcount in range(len_sal_list):
+        n_total=np.prod(sal_list[lcount].sal_l.values.shape)
+        d_list.append(sal_list[lcount].sal_l.values.reshape(n_total))
     plot_1d_sal_pdf(d_list, ax, color_list, label_list, bins = bins_list[2],
         density=density, log=log, InclKDE=InclKDE, KDEapprox=KDEapprox, 
         InclPerc=InclPerc, InclMN=InclMN, InclSD=InclSD, 
         InclWD=InclWD, InclCorr=InclCorr, InclRMSE=InclRMSE, 
         title='Location', xlab='Location', ylab=y_label)
 
-
     if PlotRad is True: 
         ax = axes[3, 0] # Row, Col
         d_list=[]
-        for lcount in range(len_sal_list): 
-            d_list.append(calc_3dradius_sal(sal_list[lcount], percentile=None))
+        for lcount in range(len_sal_list):
+            rad_tmp=calc_3dradius_sal(sal_list[lcount], percentile=None)
+            n_total=np.prod(rad_tmp.shape)
+            d_list.append(rad_tmp.reshape(n_total))
         plot_1d_sal_pdf(d_list, ax, color_list, label_list, bins = bins_list[3],
             density=density, log=log, InclKDE=InclKDE, KDEapprox=KDEapprox, 
             InclPerc=InclPerc, InclMN=InclMN, InclSD=InclSD, 
@@ -1275,7 +1393,6 @@ def plot_1d_sal_pdf(
     title=None, 
     xlab=None, 
     ylab=None):
-
 
     """
     Plot pdf histogram of input data values for a list of different 
@@ -1312,8 +1429,9 @@ def plot_1d_sal_pdf(
         1 : As above but use random subset of data # approx
         2 : gaussian_filter1d from scipy.ndimage # Much faster
     InclPerc : float | None
-        > 0: include InclPerc %tile P of score in legend (l and r)
-        < 0: include -InclPerc %tile AP of abs(score) in legend (s and a)
+        Given float in [-100,100], include this %tile P of score in legend
+        > 0: P = InclPerc %tile of score (l and r)
+        < 0: P = -InclPerc %tile of abs(score) (s and a)
         0 or None: don't include
     InclMN : boolean
         True: include pdf mean in legend
@@ -1326,7 +1444,7 @@ def plot_1d_sal_pdf(
     InclRMSE : boolean
         True: include RMSE wrt 1st list element in legend 
     title : str | None
-        Option to define text for title
+        Option to define text for title.
     xlab : str | None
         Option to define text for x-axis label
     ylab : str | None
@@ -1351,6 +1469,7 @@ def plot_1d_sal_pdf(
     addlabel=0 # count no. additions to legend labels (for adjusting text size later)
     
     # If datasets arent paired, can't compute paired diagnostics (Corr and RMSE)
+    # - also WD fails
     len_data_list_each=np.zeros(len_data_list)
     for dcount in range(len_data_list): 
         len_data_list_each[dcount]=len(data_list[dcount])
@@ -1358,6 +1477,7 @@ def plot_1d_sal_pdf(
     if len(unq_len) > 1: 
         InclCorr=False
         InclRMSE=False
+        InclWD=False
         print(f"Warning: data lengths different so can't compute paried diagnostics")
 
     if InclPerc>0:
@@ -1377,7 +1497,6 @@ def plot_1d_sal_pdf(
             label_list_tmp[dcount] += f", {-1*int(InclPerc)}AP={RParray[dcount]:.3f}"
     
     if np.abs(InclPerc)>0: addlabel=addlabel+1
-
 
     if InclMN==True:
         # Compute Mean of data_list
@@ -1412,7 +1531,8 @@ def plot_1d_sal_pdf(
         addlabel=addlabel+1
 
     if InclCorr==True:
-        # Compute Pearson Correlation wrt 1st element in data_list (assumes paired data and ignores non-finite values)
+        # Compute Pearson Correlation wrt 1st element in data_list 
+        # - assumes paired data and ignores non-finite values
         CORRarray=np.zeros(len_data_list-1)
         for dcount in range(len_data_list-1): 
             CORRarray[dcount]=calculate_pearsoncorr_nparray(data_list[0],
@@ -1421,7 +1541,8 @@ def plot_1d_sal_pdf(
         addlabel=addlabel+1
 
     if InclRMSE==True:
-        # Compute RMSE wrt 1st element in data_list (assumes paired data and ignores non-finite values)
+        # Compute RMSE wrt 1st element in data_list
+        # - assumes paired data and ignores non-finite values
         RMSEarray=np.zeros(len_data_list-1)
         for dcount in range(len_data_list-1):
             RMSEarray[dcount]=calculate_error_nparray(data_list[0],
@@ -1580,23 +1701,30 @@ def plot_matrix_2d_sal_pdf(
     TwoVar=True
     if sal2 is None: TwoVar=False
 
+    # Flatten (reshape) input DataArrays to 1d numpy arrays
+
     if TwoVar is False:
         # 1 Model prediction
         # axes[Row, Col]
+        n_total1=np.prod(sal1.sal_s.values.shape)
+        
         ax = axes[0, 0]
-        plot_2d_sal_pdf(sal1.sal_s.values, sal1.sal_a.values, None, None,
+        plot_2d_sal_pdf(sal1.sal_s.values.reshape(n_total1), 
+            sal1.sal_a.values.reshape(n_total1), None, None,
             ax, title='A vs S', xlab='structure', ylab='amplitude', 
             ScaleList=ScaleListList[0], InclScat=InclScat, InclWD=InclWD,
             level_count=level_count, color_map=color_map)
         
         ax = axes[1, 0]
-        plot_2d_sal_pdf(sal1.sal_l.values, sal1.sal_a.values, None, None,
+        plot_2d_sal_pdf(sal1.sal_l.values.reshape(n_total1), 
+            sal1.sal_a.values.reshape(n_total1), None, None,
             ax, title='A vs L', xlab='location', ylab='amplitude',
             ScaleList=ScaleListList[1], InclScat=InclScat, InclWD=InclWD,
             level_count=level_count, color_map=color_map)
         
         ax = axes[2, 0]
-        plot_2d_sal_pdf(sal1.sal_s.values, sal1.sal_l.values, None, None,
+        plot_2d_sal_pdf(sal1.sal_s.values.reshape(n_total1), 
+            sal1.sal_l.values.reshape(n_total1), None, None,
             ax, title='L vs S', xlab='structure', ylab='location',
             ScaleList=ScaleListList[2], InclScat=InclScat, InclWD=InclWD,
             level_count=level_count, color_map=color_map)
@@ -1604,22 +1732,30 @@ def plot_matrix_2d_sal_pdf(
     if TwoVar is True:
         # 2 Model predictions
         # axes[Row, Col]
+        n_total1=np.prod(sal1.sal_s.values.shape)
+        n_total2=np.prod(sal2.sal_s.values.shape)
         ax = axes[0, 0]
-        plot_2d_sal_pdf(sal1.sal_s.values, sal1.sal_a.values,
-            sal2.sal_s.values, sal2.sal_a.values, 
+        plot_2d_sal_pdf(sal1.sal_s.values.reshape(n_total1), 
+            sal1.sal_a.values.reshape(n_total1),
+            sal2.sal_s.values.reshape(n_total2), 
+            sal2.sal_a.values.reshape(n_total2),
             ax, title='A vs S', xlab='structure', ylab='amplitude', 
             ScaleList=ScaleListList[0], InclScat=InclScat, InclWD=InclWD,
             level_count=level_count, color_map=color_map)
         ax = axes[1, 0]
-        plot_2d_sal_pdf(sal1.sal_l.values, sal1.sal_a.values,
-            sal2.sal_l.values, sal2.sal_a.values,
+        plot_2d_sal_pdf(sal1.sal_l.values.reshape(n_total1), 
+            sal1.sal_a.values.reshape(n_total1),
+            sal2.sal_l.values.reshape(n_total2), 
+            sal2.sal_a.values.reshape(n_total2),
             ax, title='A vs L', xlab='location', ylab='amplitude',
             ScaleList=ScaleListList[1], InclScat=InclScat, InclWD=InclWD,
             level_count=level_count, color_map=color_map)
 
         ax = axes[2, 0]
-        plot_2d_sal_pdf(sal1.sal_s.values, sal1.sal_l.values,
-            sal2.sal_s.values, sal2.sal_l.values, 
+        plot_2d_sal_pdf(sal1.sal_s.values.reshape(n_total1), 
+            sal1.sal_l.values.reshape(n_total1),
+            sal2.sal_s.values.reshape(n_total2), 
+            sal2.sal_l.values.reshape(n_total2), 
             ax, title='L vs S', xlab='structure', ylab='location', 
             ScaleList=ScaleListList[2], InclScat=InclScat, InclWD=InclWD, 
             level_count=level_count, color_map=color_map)
@@ -1708,16 +1844,40 @@ def plot_2d_sal_pdf(
     Method removes NaN and Inf from input arrays before plotting
 
     """
+
+    if x.shape != y.shape:
+        raise ValueError(
+            f"Shape mismatch: x ({x.shape}, y {y.shape})"
+        )
+
+    TwoVar=True
+    if x2 is None: TwoVar=False
+    if y2 is None: TwoVar=False
+
+    if TwoVar==True:
+        if x2.shape != y2.shape:
+            TwoVar=False
+            print(
+                f"WARNING Shape mismatch: x2 ({x2.shape}, y2 {y2.shape})"
+                f"Set TwoVar=False"
+            )
     
     if not isinstance(level_count, (int, float)): level_count=5
     if isinstance(level_count, float): level_count=int(level_count)
     if level_count <5: level_count=5
 
-
-    TwoVar=True
-    if x2 is None: TwoVar=False
-    if y2 is None: TwoVar=False
     if TwoVar==False: InclWD=False
+
+    if InclWD==True:
+        # Check both pairs of data have same shape
+        if x.shape != x2.shape or y.shape != y2.shape:
+            InclWD=False
+            print(
+                f"WARNING Shape mismatch: \n"
+                f"x ({x.shape}, x2 {x2.shape})\n"
+                f"y ({y.shape}, y2 {y2.shape})\n"
+                f"Set InclWD=False"
+            )
 
     if InclWD==False:
         is_real=np.isfinite(x)*np.isfinite(y)
@@ -1825,8 +1985,9 @@ def plot_2d_sal_pdf(
         WassDist=sp.stats.wasserstein_distance_nd(np.column_stack((x,y)).T,
             np.column_stack((x2,y2)).T)
         WassDistTxt="%7.3f" % WassDist
-        plt.plot(np.array([MinX,MinX]), np.array([MaxX,MaxX]), '.',
-            label='WD='+WassDistTxt, color='white')
+        label_txt='WD='+WassDistTxt
+        ax1.plot(np.array([MinX,MinX]), np.array([MaxX,MaxX]), '.',
+            label=label_txt, color='white')
         ax1.legend(loc="upper left")
     ax1.set_xlabel(xlab)
     ax1.set_ylabel(ylab)
