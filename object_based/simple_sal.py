@@ -228,7 +228,7 @@ def compute_sal_xr(
 
     Parameters:
     -----------
-    prediction_xr : numpy.ndarray
+    prediction_xr : xr.Dataset
         Prediction field data. Must contain 'lat' and 'lon' dimensions,
         plus any number of leading dimensions (e.g. [time, lat, lon] or
         [time, realization, lat, lon]).
