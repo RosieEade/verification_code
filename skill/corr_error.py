@@ -32,8 +32,9 @@ def calculate_error_nparray(arr0, arr1, axis=0, typeerror='rmse'):
         First N-dimensional array (Target)
     arr1 : numpy.ndarray
         Second N-dimensional array (must have same shape as arr0) (Prediction)
-    axis : int, default=0
-        Axis/axes along which to compute error
+    axis : int or tuple of int, default=0
+        Axis or tuple of axes over which to compute error
+        None : if want to compute over all axes
     typeerror : str, default='rmse'
         Type of error to compute, options ('rmse', 'bias', 'abias', 'ratio')
     
@@ -84,7 +85,7 @@ def calculate_pearsoncorr_nparray(arr0, arr1, axis=0):
         First N-dimensional array (Target)
     arr1 : numpy.ndarray
         Second N-dimensional array (must have same shape as arr0) (Prediction)
-    axis : int or type of int, default=0
+    axis : int or tuple of int, default=0
         Axis or tuple of axes over which to compute correlation
         None : if want to compute over all axes
     
