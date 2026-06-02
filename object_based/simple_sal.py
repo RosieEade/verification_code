@@ -1231,7 +1231,7 @@ def plot_matrix_1d_sal_pdf(
     log=False, 
     density=False, 
     InclKDE=False, 
-    KDEapprox=None, 
+    KDEapprox=2, 
     InclPerc=0, 
     InclMN=False, 
     InclSD=False, 
@@ -1282,7 +1282,7 @@ def plot_matrix_1d_sal_pdf(
         Option for different methods to approx KDE
         0 | None : Standard sp.stats.gaussian_kde() # Slow if large data
         1 : As above but use random subset of data # approx
-        2 : gaussian_filter1d from scipy.ndimage # Much faster
+        2 : gaussian_filter1d from scipy.ndimage # Much faster (default)
     InclPerc : float | None
         Given float in [0,100], include this %tile P of score in legend
         0 or None: don't include
@@ -1383,7 +1383,7 @@ def plot_1d_sal_pdf(
     log=False, 
     density=False, 
     InclKDE=False, 
-    KDEapprox=None, 
+    KDEapprox=2, 
     InclPerc=0, 
     InclMN=False, 
     InclSD=False,
@@ -1427,7 +1427,7 @@ def plot_1d_sal_pdf(
         Option for different methods to approx KDE
         0 | None : Standard sp.stats.gaussian_kde() # Slow if large data
         1 : As above but use random subset of data # approx
-        2 : gaussian_filter1d from scipy.ndimage # Much faster
+        2 : gaussian_filter1d from scipy.ndimage # Much faster (default)
     InclPerc : float | None
         Given float in [-100,100], include this %tile P of score in legend
         > 0: P = InclPerc %tile of score (l and r)
@@ -1456,6 +1456,14 @@ def plot_1d_sal_pdf(
     e.g. as called by plot_matrix_1d_sal_pdf()
     
     """
+
+    if KDEapprox is None: KDEapprox=0
+
+    KDEapprox_list=[0, 1, 2]
+    if not KDEapprox in KDEapprox_list:
+        print(f"KDEapprox not in [0, 1, 2]: {KDEapprox}")
+        print(f"Set KDEapprox to be 2")
+        KDEapprox=2
     
     len_data_list=len(data_list)    
 
@@ -1568,20 +1576,23 @@ def plot_1d_sal_pdf(
         data_tmp=data_list[dcount][is_real]
         if len(is_real[~is_real])>0: NANexist=True
 
+        #Flatten data before plotting
+        data_tmp=data_tmp.reshape(np.prod(data_tmp.shape))
+
         ax1.hist(data_tmp, bins=bins, edgecolor=color_list[dcount], 
             color=color_list[dcount], log=log, density=density, 
             label=label_list_tmp[dcount], alpha=0.3)
         
-        if InclKDE is True and KDEapprox is None:
+        if InclKDE is True and KDEapprox == 0:
             kde = sp.stats.gaussian_kde(data_tmp) # Very slow if large data
             pdf_vals = kde(x_vals)
         if InclKDE is True and KDEapprox == 1:
             # Use random subset of data instead of all of the data
             # < 1 sec for ~2e6 data points but tail too smooth
-            if data_tmp <= 10000: 
+            if data_tmp.size <= 10000: 
                 kde = sp.stats.gaussian_kde(data_tmp)
                 pdf_vals = kde(x_vals)
-            if data_tmp > 10000: 
+            if data_tmp.size > 10000: 
                 rng = np.random.default_rng(82)
                 tmp_sample = rng.choice(data_tmp, size=10000, replace=False)
                 kde = sp.stats.gaussian_kde(tmp_sample) 
