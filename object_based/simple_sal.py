@@ -264,14 +264,15 @@ def compute_sal_xr(
     lon_name : str
         Define name of longitude dimension e.g. 'lon' or 'x'
     member_name : str | None
-        Define name of member dimension (ensemble prediction) eg 'member'
+        Define name of member dimension (ensemble prediction) e.g. 
+        'member' or 'realization'
     
     Returns:
     --------
     xr.Dataset
         Arrays of SAL scores for input target and prediction field pairs
         (np.nan if no objects found). Has the same leading dimensions as
-        the input arrays, e.g. [time] or [time, realization].
+        the input arrays, e.g. [time] or [time, member].
         .sal_s = structure
         .sal_a = amplitude
         .sal_l = location
