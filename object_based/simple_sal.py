@@ -231,9 +231,10 @@ def compute_sal_xr(
     prediction_xr : xr.Dataset
         Prediction field data. Must contain 'lat' and 'lon' dimensions,
         plus any number of leading dimensions (e.g. [time, lat, lon] or
-        [time, realization, lat, lon]).
+        [time, member, lat, lon]).
     target_xr : xr.Dataset
-        Target field data, same shape as prediction_xr
+        Target field data, same shape as prediction_xr but without 
+        ensemble dimension.
     eThreshFix : float | None
         Fixed threshold to be used to define event (same units as target)
         If eThreshFix value given, this overrides quantile based options
