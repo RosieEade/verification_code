@@ -4,7 +4,7 @@ Prediction and Target (truth)
 
     compute_sal_xr()
     - compute SAL score for multiple timesteps and/or members
-      of lat/lon fields in an xarray Dataset
+      of lat/lon fields in an xarray DataArray
 
     compute_sal()
     - compute SAL score for single pair of lat/lon fields
