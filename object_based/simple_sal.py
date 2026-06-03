@@ -228,11 +228,11 @@ def compute_sal_xr(
 
     Parameters:
     -----------
-    prediction_xr : xr.Dataset
+    prediction_xr : xr.DataArray
         Prediction field data. Must contain 'lat' and 'lon' dimensions,
         plus any number of leading dimensions (e.g. [time, lat, lon] or
         [time, member, lat, lon]).
-    target_xr : xr.Dataset
+    target_xr : xr.DataArray
         Target field data, same shape as prediction_xr but without 
         ensemble dimension.
     eThreshFix : float | None
