@@ -4,6 +4,9 @@ This is an in-progress repository for code related to the verification of climat
 ## skill
 Simple skill based functions such as correlation and rmse between sets of paired predictions and target.
 
+## distribution
+Distribution based assessments for sets of predictions and target e.g. histogram and qq plots; Jensen Shannon distance, Wasserstein distance and Perkins skill score.
+
 ## object_based
 Object based assessments for sets of paired predictions and target e.g. for events where the climate variable is beyond a given threshold.
 
