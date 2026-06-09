@@ -1208,8 +1208,8 @@ def plot_3d_sal_scatter(
         if ScaleList[4]!=None: MinZ=ScaleList[4]
         if ScaleList[5]!=None: MaxZ=ScaleList[5]
 
-    if useSList==True: plt.scatter(x,y,c=y,cmap=color_map,vmin=MinZ,vmax=MaxZ,zorder=1)
-    if useSList==False: plt.scatter(x, y, c=y, cmap=color_map, zorder=1)
+    if useSList==True: plt.scatter(x,y,c=z,cmap=color_map,vmin=MinZ,vmax=MaxZ,zorder=1)
+    if useSList==False: plt.scatter(x, y, c=z, cmap=color_map, zorder=1)
     if useSList==True: ax.set_xlim(left=MinX, right=MaxX)
     if useSList==True: ax.set_ylim(bottom=MinY, top=MaxY)
 
