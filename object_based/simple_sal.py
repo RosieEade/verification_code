@@ -206,7 +206,7 @@ def compute_sal_xr(
     thr_factor=None, 
     minFac=None, 
     minsize=0, 
-    structure=np.ones((3, 3), dtype=int),
+    structure=np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=int),
     lat_name='lat',
     lon_name='lon',
     member_name=None):
@@ -216,6 +216,10 @@ def compute_sal_xr(
     Based on Wernli et al., 2008 and 2009
     https://journals.ametsoc.org/view/journals/mwre/136/11/2008mwr2415.1.xml
     https://journals.ametsoc.org/view/journals/wefo/24/6/2009waf2222271_1.xml
+    
+    *Assumes input fields are non-negative like precipitation. May behave 
+    unexpectedly if negative values exist.
+    
     Extended to allow the use of:
     - fixed thresholds independent of input data
     - different minimum object size thresholds
@@ -257,8 +261,9 @@ def compute_sal_xr(
     structure : numpy.ndarray, dtype=int, shape [3, 3]
         This array defines what are classed as neighbouring grid points.
         2 Options:
-        np.ones((3, 3), dtype=int) # Orthogonal and diagonal (default)
-        np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]]) # Orthogonal only
+        np.array([[0, 1, 0],[1, 1, 1],[0, 1, 0]], dtype=int) # Orthogonal-
+         only (default)
+        np.ones((3, 3), dtype=int) # Orthogonal and diagonal
     lat_name : str
         Define name of latitude dimension e.g. 'lat' or 'y'
     lon_name : str
@@ -432,7 +437,7 @@ def compute_sal(
     thr_factor=None, 
     minFac=None, 
     minsize=0, 
-    structure=np.ones((3, 3), dtype=int), 
+    structure=np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=int),
     filename=None, 
     plot_indiv=False, 
     field_levels=None, 
@@ -488,8 +493,9 @@ def compute_sal(
     structure : numpy.ndarray, dtype=int, shape [3, 3]
         This array defines what are classed as neighbouring grid points.
         2 Options:
-        np.ones((3, 3), dtype=int) # Orthogonal and diagonal (default)
-        np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]]) # Orthogonal only
+        np.array([[0, 1, 0],[1, 1, 1],[0, 1, 0]], dtype=int) # Orthogonal-
+         only (default)
+        np.ones((3, 3), dtype=int) # Orthogonal and diagonal
     filename : str | None
         If not None: objects map saved to filename+'_objects.png':
         Target (Truth) shaded in colours, Prediction as contour lines
