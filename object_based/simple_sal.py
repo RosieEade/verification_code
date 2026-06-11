@@ -443,6 +443,10 @@ def compute_sal(
     Based on Wernli et al., 2008 and 2009
     https://journals.ametsoc.org/view/journals/mwre/136/11/2008mwr2415.1.xml
     https://journals.ametsoc.org/view/journals/wefo/24/6/2009waf2222271_1.xml
+    
+    *Assumes input fields are non-negative like precipitation. May behave 
+    unexpectedly if negative values exist.
+    
     Extended to allow the use of:
     - fixed thresholds independent of input data
     - different minimum object size thresholds
@@ -605,6 +609,13 @@ def compute_sal(
             "sal_targ_num": 0,
             "sal_pred_num": 0,
         })
+
+    # If all data below event thresholds, then no objects can be found
+    targ_min=target.min()
+    pred_min=prediction.min()
+    if targ_min<0 or pred_min<0:
+        print("WARNING: input fields contain negative values. SAL score function ")
+        print("assumes non-negative values, so may behave unexpectedly.")
     
     # If all data below event thresholds, then no objects can be found
     targ_max=target.max()
