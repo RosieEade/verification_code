@@ -1219,6 +1219,12 @@ def plot_3d_sal_scatter(
         plt.axvline(np.percentile(x, 50), color ='black', linestyle=':', alpha = 1,
             zorder=3)
 
+    MinX=None
+    MaxX=None
+    MinY=None
+    MaxY=None
+    MinZ=None
+    MaxZ=None
     useSList=False
     if len(ScaleList)==6: useSList=True
     if useSList==True:
