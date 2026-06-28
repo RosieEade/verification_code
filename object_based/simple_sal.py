@@ -1158,6 +1158,10 @@ def plot_3d_sal_scatter(
         Scatterplot saved to filepath (including .png or equiv)
     ptitle : str
         Optional string of text for title
+    ScaleList : [float] | [None]
+        Option to specify list of floats for scale range on plot:
+        [MinX, MaxX, MinY, MaxY, MinZ, MaxZ]
+        Use None for values that don't want to specify
     color_map : matplotlib Colormap
         Define colormap for location score e.g. 'Spectral' 'Reds' 'RdBu_r'
     ptiles_col : str | None
