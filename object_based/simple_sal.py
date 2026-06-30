@@ -616,7 +616,7 @@ def compute_sal(
             "sal_pred_num": 0,
         })
 
-    # If all data below event thresholds, then no objects can be found
+    # Check for negative values
     targ_min=target.min()
     pred_min=prediction.min()
     if targ_min<0 or pred_min<0:
@@ -1083,6 +1083,10 @@ def plot_input_and_objects_map(
     # Add colorbar
     cbar = plt.colorbar(cf2, ax=ax1, orientation='vertical', pad=0.02)
     cbar.set_label(cbartitle)
+    
+    if isinstance(levels_list[1], type(None)):
+        max_obj=np.array([targ_objs.max(),pred_objs.max()]).max()
+        levels_list[1]=np.arange(max_obj+1)
 
     # Target Objects
     ax1=axes[1,0]
