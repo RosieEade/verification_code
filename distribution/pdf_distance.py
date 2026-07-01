@@ -373,19 +373,23 @@ def calc_pdf_metric_nparray(
     axis=0, 
     bins_arr=None, 
     nbins=100, 
-    typedistance='jsd', 
-    printBins=False):
+    typedistance='pss', 
+    printBins=False,
+    min_freq=10):
     """
-    Calculate Distance metrics between 2 N-dimensional numpy arrays
+    Calculate distribution comparison metrics between 2 N-dimensional numpy arrays
     - over all dimensions (axes) or
     - over 0th dimension (axis) (may need to reshape input arrays first)
     Computes bin probabilities, then uses typedistance string:
-    - jsd: scipy.spatial.distance.jensenshannon (zero best)
     - pss: perkins skill score (1 best; similarity: O low to 1 high)
+    - jsd: scipy.spatial.distance.jensenshannon (zero best)
+    - fcss: fractional contribution skill score (0 best to 2 worst)
+      only works for non-negative data e.g. precipitation
+    - lhd: log histogram distance (zero best)
     - wdh: scipy.stats.wasserstein_distance on histogram (zero best)
-      fast for very large data
-    - wd: scipy.stats.wasserstein_distance on data (not histogram)
-      slow for very large data
+      good for very large data
+    - wd: scipy.stats.wasserstein_distance on data cdf method
+      (not histogram) slow for very large data
     Copyright (c) 2026 Klima consulting
     Author: Rosie Eade
 
@@ -405,38 +409,58 @@ def calc_pdf_metric_nparray(
     nbins : int
         Define bins using default hist method with nbins=no. bins based on target arr0
         If nbins input as a float, this will be rounded down to int(nbins)
-    printBins : Boolean
-        True: Option to print info regarding number bins and edge values
     typedistance : str
         Define type of distance or score to compute
+    printBins : Boolean
+        True: Option to print info regarding number bins and edge values
+    min_freq: 10
+        Option for FCSS: filter out bins that have frequency <= min_freq threshold
         
     Returns:
     --------
     numpy.ndarray | float
-        Jenson Shannon Distance. 
+        Array of distribution comparison metrics for sets of input target (arr0) and 
+        prediction (arr1) fields.
         if axis==None: Output is a float
-        if axis==0: Output has N - 1 dimensions 
-        (input shape with the 0th axis removed).
+        if axis==0: Output has N - 1 dimensions (input shape with the 0th axis removed).
 
     See Also
     --------
+    
+    Perkins Skill Score
+    Perkins et al, 2007
+    https://journals.ametsoc.org/view/journals/clim/20/17/jcli4253.1.xml
+    
     Jensen Shannon distance
     Using scipy.spatial.distance.jensenshannon
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.jensenshannon.html
     <<Compute the Jensen-Shannon distance (metric) between two probability
     arrays. This is the square root of the Jensen-Shannon divergence.>>
     
-    Perkins Skill Score
-    Perkins et al, 2007
-    https://journals.ametsoc.org/view/journals/clim/20/17/jcli4253.1.xml
+    Fractional Contribution Skill Score
+    Berthou et al., 2020
+    https://link.springer.com/article/10.1007/s00382-018-4114-6
+    NB this score was developed for precipitation and only works for non-negative data
+    They apply to precip with uneven histogram bins based on Klingaman et al. (2017)
+    so can assess the contribution from different physical intensities of precip.
+    
+    Logarithmic Histogram Distance
+    Rampal et al., 2024
+    https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2024MS004668
+    <<the LHD (units of decibels) measures the logarithmic distance between the
+    predicted histogram and ground truth histogram>>
+    They apply to precip for just rain days with linearly spaced histogram bins:
+    <<53 evenly spaced bins (1- 1,050 mm/day) with a spacing of 20 mm>>
     
     Wasserstein Distance
     Using scipy.stats.wasserstein_distance
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.wasserstein_distance.html
+    wdh: compute distance on histogram data (faster for very large data)
+    wd: use cdf method and compute directly on data without need for histogram
     
     """
 
-    distance_list=['jsd', 'pss', 'wdh', 'wd']
+    distance_list=['pss', 'jsd', 'fcss', 'lhd', 'alhd', 'wdh', 'wd']
     if not typedistance in distance_list:
         raise ValueError(f"typedistance not recognised: {typedistance}")
 
@@ -470,15 +494,6 @@ def calc_pdf_metric_nparray(
     if axis==0 and len(arr0.shape) < 2:  axis=None
     
     if axis is None:
-        if typedistance=='jsd':
-            phist, pedge = np.histogram(arr0, bins=bins_arr, density=True)
-            qhist, qedge = np.histogram(arr1, bins=bins_arr, density=True)
-
-            # Normalise so sums to 1
-            phist = phist / phist.sum()
-            qhist = qhist / qhist.sum()
-        
-            dist_out=float(sp.spatial.distance.jensenshannon(phist, qhist))
 
         if typedistance=='pss':
             phist, pedge = np.histogram(arr0, bins=bins_arr, density=True)
@@ -490,9 +505,89 @@ def calc_pdf_metric_nparray(
         
             dist_out=float(np.sum(np.minimum(phist, qhist)))
 
-        if typedistance=='wdh':
-            #dist_out=sp.stats.wasserstein_distance(arr0,arr1)
-            
+        if typedistance=='jsd':
+            phist, pedge = np.histogram(arr0, bins=bins_arr, density=True)
+            qhist, qedge = np.histogram(arr1, bins=bins_arr, density=True)
+
+            # Normalise so sums to 1
+            phist = phist / phist.sum()
+            qhist = qhist / qhist.sum()
+        
+            dist_out=float(sp.spatial.distance.jensenshannon(phist, qhist))
+
+        if typedistance=='fcss':
+            phist, pedge = np.histogram(arr0, bins=bins_arr, density=True)
+            qhist, qedge = np.histogram(arr1, bins=bins_arr, density=True)
+
+            # Normalise so sums to 1
+            phist = phist / phist.sum(axis=0)
+            qhist = qhist / qhist.sum(axis=0)
+
+            # Use bin midpoints as representative values
+            bin_centres = (bins_arr[:-1] + bins_arr[1:]) / 2
+	    
+	    # Contribution to mean
+            p_contrib = phist * bin_centres
+            q_contrib = qhist * bin_centres
+	    
+	    # Fractional contribution to mean
+            p_fcontrib = p_contrib / np.sum(p_contrib)
+            q_fcontrib = q_contrib / np.sum(q_contrib)
+      
+            dist_out=float(np.sum(np.abs(q_fcontrib - p_fcontrib)))
+
+        if typedistance=='lhd':
+            phist, pedge = np.histogram(arr0, bins=bins_arr, density=True)
+            qhist, qedge = np.histogram(arr1, bins=bins_arr, density=True)
+
+            # Normalise so sums to 1
+            phist = phist / phist.sum()
+            qhist = qhist / qhist.sum()
+    
+            phist_freq, pedge = np.histogram(arr0, bins=bins_arr, density=False)
+            qhist_freq, qedge = np.histogram(arr1, bins=bins_arr, density=False)
+
+            # Add small epsilon to avoid log(0)
+            # and filter out bins that contain too few values
+            eps = 1e-10
+            valid_bins = (phist_freq > min_freq) & (qhist_freq > min_freq)
+            phist[~valid_bins]=np.nan
+            qhist[~valid_bins]=np.nan
+            phist = np.clip(phist, eps, None)
+            qhist = np.clip(qhist, eps, None)
+
+            # Logarithmic histogram distance, ignoring sparse bins
+            log_diff = (10.0 * (np.log10(phist) - np.log10(qhist))) ** 2
+
+            dist_out = np.sqrt(np.nanmean(log_diff)).astype(float)
+
+        if typedistance=='alhd':
+            # LHD using abs(diff) method instead of rmse method
+            phist, pedge = np.histogram(arr0, bins=bins_arr, density=True)
+            qhist, qedge = np.histogram(arr1, bins=bins_arr, density=True)
+
+            # Normalise so sums to 1
+            phist = phist / phist.sum()
+            qhist = qhist / qhist.sum()
+    
+            phist_freq, pedge = np.histogram(arr0, bins=bins_arr, density=False)
+            qhist_freq, qedge = np.histogram(arr1, bins=bins_arr, density=False)
+
+            # Add small epsilon to avoid log(0)
+            # and filter out bins that contain too few values
+            eps = 1e-10
+            valid_bins = (phist_freq > min_freq) & (qhist_freq > min_freq)
+            phist[~valid_bins]=np.nan
+            qhist[~valid_bins]=np.nan
+            phist = np.clip(phist, eps, None)
+            qhist = np.clip(qhist, eps, None)
+
+            # Logarithmic histogram distance, ignoring sparse bins
+            log_diff = 10.0 * np.abs(np.log10(phist) - np.log10(qhist))
+
+            dist_out = np.nanmean(log_diff).astype(float)
+
+        if typedistance=='wdh':            
             phist, pedge = np.histogram(arr0, bins=bins_arr, density=True)
             qhist, qedge = np.histogram(arr1, bins=bins_arr, density=True)
 
@@ -510,6 +605,7 @@ def calc_pdf_metric_nparray(
                 u_weights=phist,
                 v_weights=qhist
             )
+
         if typedistance=='wd':
             arr0_flat=arr0.reshape(np.prod(arr0.shape))
             arr1_flat=arr1.reshape(np.prod(arr1.shape))
@@ -517,6 +613,17 @@ def calc_pdf_metric_nparray(
 
 
     if axis==0:
+
+        if typedistance=='pss':
+            phist=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=True)[0], 0, arr0)
+            qhist=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=True)[0], 0, arr1)
+
+            # Normalise so sums to 1
+            phist = phist / phist.sum(axis=0)
+            qhist = qhist / qhist.sum(axis=0)
+        
+            dist_out=np.sum(np.minimum(phist, qhist), axis=0).astype(float)
+
         if typedistance=='jsd':
             phist=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=True)[0], 0, arr0)
             qhist=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=True)[0], 0, arr1)
@@ -528,15 +635,83 @@ def calc_pdf_metric_nparray(
             dist_out=sp.spatial.distance.jensenshannon(phist, qhist)
             dist_out=dist_out.astype(float)
 
-        if typedistance=='pss':
+        if typedistance=='fcss':
             phist=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=True)[0], 0, arr0)
             qhist=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=True)[0], 0, arr1)
 
             # Normalise so sums to 1
             phist = phist / phist.sum(axis=0)
             qhist = qhist / qhist.sum(axis=0)
-        
-            dist_out=np.sum(np.minimum(phist, qhist), axis=0).astype(float)
+
+            # Use bin midpoints as representative values
+            bin_centres = (bins_arr[:-1] + bins_arr[1:]) / 2
+	    
+	    # Contribution to mean
+            extra_dims = phist.ndim - 1
+            bclen=bin_centres.shape[0]
+            p_contrib = bin_centres.reshape(bclen, *([1] * extra_dims)) * phist
+            q_contrib = bin_centres.reshape(bclen, *([1] * extra_dims)) * qhist
+	    
+	    # Fractional contribution to mean
+            p_fcontrib = p_contrib / np.sum(p_contrib, axis=0)
+            q_fcontrib = q_contrib / np.sum(q_contrib, axis=0)
+      
+            dist_vec=np.abs(q_fcontrib - p_fcontrib)	    
+            dist_out=np.sum(dist_vec, axis=0).astype(float)	    
+
+        if typedistance=='lhd':
+            phist=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=True)[0], 0, arr0)
+            qhist=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=True)[0], 0, arr1)
+
+            # Normalise so sums to 1
+            phist = phist / phist.sum(axis=0)
+            qhist = qhist / qhist.sum(axis=0)
+	    
+            phist_freq=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=False)[0], 0, arr0)
+            qhist_freq=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=False)[0], 0, arr1)
+
+            # Add small epsilon to avoid log(0)
+            # and filter out bins that contain too few values
+            eps = 1e-10
+            valid_bins = (phist_freq > min_freq) & (qhist_freq > min_freq)
+            phist[~valid_bins]=np.nan
+            qhist[~valid_bins]=np.nan
+            phist = np.clip(phist, eps, None)
+            qhist = np.clip(qhist, eps, None)
+
+            # Logarithmic histogram distance, ignoring sparse bins
+            log_diff = (10.0 * (np.log10(phist) - np.log10(qhist))) ** 2
+            print(log_diff.shape)
+            print(np.nanmean(log_diff, axis=0).shape)
+
+            dist_out = np.sqrt(np.nanmean(log_diff, axis=0)).astype(float)
+
+        if typedistance=='alhd':
+            phist=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=True)[0], 0, arr0)
+            qhist=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=True)[0], 0, arr1)
+
+            # Normalise so sums to 1
+            phist = phist / phist.sum(axis=0)
+            qhist = qhist / qhist.sum(axis=0)
+	    
+            phist_freq=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=False)[0], 0, arr0)
+            qhist_freq=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=False)[0], 0, arr1)
+
+            # Add small epsilon to avoid log(0)
+            # and filter out bins that contain too few values
+            eps = 1e-10
+            valid_bins = (phist_freq > min_freq) & (qhist_freq > min_freq)
+            phist[~valid_bins]=np.nan
+            qhist[~valid_bins]=np.nan
+            phist = np.clip(phist, eps, None)
+            qhist = np.clip(qhist, eps, None)
+
+            # Logarithmic histogram distance, ignoring sparse bins
+            log_diff = 10.0 * np.abs(np.log10(phist) - np.log10(qhist))
+            print(log_diff.shape)
+            print(np.nanmean(log_diff, axis=0).shape)
+
+            dist_out = np.nanmean(log_diff, axis=0).astype(float)
 
         if typedistance=='wdh':
             phist=np.apply_along_axis(lambda a: np.histogram(a, bins=bins_arr, density=True)[0], 0, arr0)
@@ -554,8 +729,6 @@ def calc_pdf_metric_nparray(
             dist_out=np.zeros(np.prod(arr0.shape[1:]))
             phist_flat=phist.reshape([phist.shape[0], np.prod(phist.shape[1:])])
             qhist_flat=qhist.reshape([qhist.shape[0], np.prod(qhist.shape[1:])])
-            print(phist_flat.shape)
-            print(qhist_flat.shape)
             
             for ii in range(np.prod(arr0.shape[1:])):
                 dist_out[ii]=sp.stats.wasserstein_distance(
@@ -567,10 +740,8 @@ def calc_pdf_metric_nparray(
 
         if typedistance=='wd':
             dist_out=np.zeros(np.prod(arr0.shape[1:]))
-            print(dist_out.shape)
             arr0_flat=arr0.reshape(arr0.shape[0],np.prod(arr0.shape[1:]))
             arr1_flat=arr1.reshape(arr1.shape[0],np.prod(arr1.shape[1:]))
-            print(arr0_flat.shape)
             for ii in range(np.prod(arr0.shape[1:])):
                 dist_out[ii]=sp.stats.wasserstein_distance(arr0_flat[:,ii],arr1_flat[:,ii])
 
@@ -589,19 +760,23 @@ def calc_pdf_metric_xr(
     bins_arr=None,
     nbins=100,
     printBins=False,
-    typedistance='jsd'):
+    typedistance='pss',
+    min_freq=10):
 
     '''
-    Compute Distance metrics between 2 N-dimensional numpy arrays
+    Compute distribution comparison metrics between 2 N-dimensional numpy arrays
     - over all dimensions (axes) or
     - over 0th dimension (axis) (may need to reshape input arrays first)
     Computes bin probabilities, then uses typedistance string:
-    - jsd: scipy.spatial.distance.jensenshannon (zero best)
     - pss: perkins skill score (1 best; similarity: O low to 1 high)
+    - jsd: scipy.spatial.distance.jensenshannon (zero best)
+    - fcss: fractional contribution skill score (0 best to 2 worst)
+      only works for non-negative data e.g. precipitation
+    - lhd: log histogram distance (zero best)
     - wdh: scipy.stats.wasserstein_distance on histogram (zero best)
       good for very large data
-    - wd: scipy.stats.wasserstein_distance on data (not histogram)
-      slow for very large data
+    - wd: scipy.stats.wasserstein_distance on data cdf method
+      (not histogram) slow for very large data    
 
     **Assumes data arrays have the same size, though prediction_xr may have
       an additional ensemble dimension: member_name must be specified to
@@ -643,34 +818,55 @@ def calc_pdf_metric_xr(
         True: Option to print info regarding number bins and edge values
     typedistance : str
         Define type of distance or score to compute
+    min_freq: 10
+        Option for FCSS: filter out bins that have frequency <= min_freq threshold
     
     Returns:
     --------
     xr.Dataset
-        Arrays of Jensen-Shannon distances for sets of input target and 
+        Array of distribution comparison metrics for sets of input target and 
         prediction fields.
-        Float if dim_over=None
-        Else a subset of input dimension e.g. [lat, lon] or [member, lat, lon]
+        if dim_over==None: Output is a float
+        Else Output has N - 1 dimensions (input shape with the 0th axis removed).
+        e.g. [lat, lon] or [member, lat, lon]
 
     See Also
     --------
+    
+    Perkins Skill Score
+    Perkins et al, 2007
+    https://journals.ametsoc.org/view/journals/clim/20/17/jcli4253.1.xml
+    
     Jensen Shannon distance
     Using scipy.spatial.distance.jensenshannon
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.jensenshannon.html
     <<Compute the Jensen-Shannon distance (metric) between two probability
     arrays. This is the square root of the Jensen-Shannon divergence.>>
     
-    Perkins Skill Score
-    Perkins et al, 2007
-    https://journals.ametsoc.org/view/journals/clim/20/17/jcli4253.1.xml
+    Fractional Contribution Skill Score
+    Berthou et al., 2020
+    https://link.springer.com/article/10.1007/s00382-018-4114-6
+    NB this score was developed for precipitation and only works for non-negative data
+    They apply to precip with uneven histogram bins based on Klingaman et al. (2017)
+    so can assess the contribution from different physical intensities of precip.
+    
+    Logarithmic Histogram Distance
+    Rampal et al., 2024
+    https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2024MS004668
+    <<the LHD (units of decibels) measures the logarithmic distance between the
+    predicted histogram and ground truth histogram>>
+    They apply to precip for just rain days with linearly spaced histogram bins:
+    <<53 evenly spaced bins (1- 1,050 mm/day) with a spacing of 20 mm>>
     
     Wasserstein Distance
     Using scipy.stats.wasserstein_distance
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.wasserstein_distance.html
+    wdh: compute distance on histogram data (faster for very large data)
+    wd: use cdf method and compute directly on data without need for histogram
 
     '''
 
-    distance_list=['jsd', 'pss', 'wdh', 'wd']
+    distance_list=['pss', 'jsd', 'fcss', 'lhd', 'alhd', 'wdh', 'wd']
     if not typedistance in distance_list:
         raise ValueError(f"typedistance not recognised: {typedistance}")
 
@@ -718,7 +914,8 @@ def calc_pdf_metric_xr(
     if not output_dims:
         dist_out=calc_pdf_metric_nparray(target_xr.values, prediction_xr.values,
             axis=None, bins_arr=bins_arr, nbins=nbins, typedistance=typedistance,
-            printBins=printBins)
+            printBins=printBins, min_freq=min_freq)
+
         return xr.Dataset({typedistance: dist_out})
 
     # Transpose to ensure dim_over dims come first, output_dims last e.g. spatial dims:
@@ -736,7 +933,8 @@ def calc_pdf_metric_xr(
     prediction_flat = prediction_xr.values.reshape(n_total, *output_shape)
     
     dist_out=calc_pdf_metric_nparray(target_flat, prediction_flat, axis=0,
-        bins_arr=bins_arr, nbins=nbins, typedistance=typedistance,printBins=printBins)
+        bins_arr=bins_arr, nbins=nbins, typedistance=typedistance,
+        printBins=printBins, min_freq=min_freq)
     
     dist_out_xr = xr.Dataset({typedistance: (output_dims, dist_out)})
 
