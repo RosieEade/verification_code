@@ -10,12 +10,17 @@ Prediction vs Target (truth)
     - compute Pearson correlation metric on numpy arrays
       over all or subset of axes
 
+    xr_spearman_corr()
+    - compute Spearman's rank correlation on xarray dataArrays,
+      mirroring xr.corr
+
 Copyright (c) 2026 Klima consulting
 Author: Rosie Eade
  
 """
 
 import numpy as np
+import xarray as xr
 
 # -------------------------------------------------------------------------------------
 # Computation Code
@@ -120,5 +125,47 @@ def calculate_pearsoncorr_nparray(arr0, arr1, axis=0):
                             where=denominator!=0)
     
     return correlations
+
+# -------------------------------------------------------------------------------------
+
+def xr_spearman_corr(da_a, da_b, dim=None):
+    """
+    Spearman rank correlation between two DataArrays, mirroring xr.corr's API.
+
+    Computed as Pearson correlation (xr.corr) on rank-transformed data,
+    which is the standard definition of Spearman's rho.
+    
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
+
+    Parameters
+    ----------
+    da_a, da_b : xr.DataArray
+        Arrays to correlate. Must share the dimension(s) given in `dim`.
+    dim : str, Sequence[str], or None
+        Dimension(s) to reduce over. If None, uses all dims shared by
+        da_a and da_b (same default behavior as xr.corr).
+
+    Returns
+    -------
+    xr.DataArray
+        Spearman correlation coefficient, with `dim` reduced out.
+    """
+    if dim is None:
+        dim = list(set(da_a.dims) & set(da_b.dims))
+
+    dims = [dim] if isinstance(dim, str) else list(dim)
+
+    if len(dims) == 1:
+        rank_a = da_a.rank(dim=dims[0])
+        rank_b = da_b.rank(dim=dims[0])
+    else:
+        # DataArray.rank only supports a single dim, so stack the
+        # requested dims into one before ranking, then unstack.
+        stacked = "__spearman_stack__"
+        rank_a = da_a.stack({stacked: dims}).rank(dim=stacked).unstack(stacked)
+        rank_b = da_b.stack({stacked: dims}).rank(dim=stacked).unstack(stacked)
+
+    return xr.corr(rank_a, rank_b, dim=dim)
 
 # -------------------------------------------------------------------------------------
