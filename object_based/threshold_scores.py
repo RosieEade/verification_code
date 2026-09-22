@@ -98,7 +98,15 @@ def compute_ets(prediction, target, eThresh, relation='gt', axis=None, TSopt=Fal
     if prediction.shape != target.shape:
         raise ValueError(f"Shape mismatch: {prediction.shape} vs {target.shape}")
 
-    # Make sure axis is a tuple
+    if axis is not None:
+        print_ct = False
+
+    # -------------------------------
+    # Make sure axis is a tuple in correct form for np.array or xr.DataArray
+    if isinstance(axis, type(None)):
+        if isinstance(target, xr.DataArray): axis = target.dims
+        if not isinstance(target, xr.DataArray): axis = tuple(int(x) for x in np.arange(target.ndim))
+    
     if isinstance(axis, int) or isinstance(axis, str):
         axis = (axis,)
     
@@ -110,10 +118,11 @@ def compute_ets(prediction, target, eThresh, relation='gt', axis=None, TSopt=Fal
     else:
         raise ValueError(f"axis expected (tuple of) str or int, got: {axis}")
     
-    # If axis is a string and input is xr.DataArray, then identify axis numbers
+    # If axis is a tuple of str and input is a np.array then can't identify axes
     if axis_ok == 2 and not isinstance(target, xr.DataArray):
         raise ValueError(f"can't use axis of strings with a np array")
 
+    # If axis is a tuple of str and input is xr.DataArray, then identify axis numbers
     if axis_ok == 2 and isinstance(target, xr.DataArray):
         dim_positions = []
         for target_dim in axis:
@@ -122,6 +131,7 @@ def compute_ets(prediction, target, eThresh, relation='gt', axis=None, TSopt=Fal
             except ValueError:
                 raise ValueError(f"Dimension '{target_dim}' not found in {target.dims}")
         axis = tuple(dim_positions)
+    # -------------------------------
 
     # False/True fields
     prediction_masked = make_mask(prediction, eThresh, relation=relation)
@@ -139,8 +149,9 @@ def compute_ets(prediction, target, eThresh, relation='gt', axis=None, TSopt=Fal
     nFalseAlarms=np.sum(FalseAlarms, axis=axis)
     nTrueNegs=np.sum(TrueNegs, axis=axis)
     
-    if axis is None and print_ct:
+    if print_ct:
         # Print contingency table individual values
+        # - Only if axis=None i.e. 1 value per table element
         print(f"Hits: {np.sum(nHits)}")
         print(f"Misses: {np.sum(nMisses)}")
         print(f"FalseAlarms: {np.sum(nFalseAlarms)}")
@@ -198,7 +209,8 @@ def compute_proximity_distance(prediction, target, eThresh, relation='gt', axis=
         Relationship of event to threshold: 'gt', 'ge', 'lt', 'le', 'eq', 'ne'
     axis : (tuple of) int or (tuple of) str
         Axes or dims to compute distances over (default: ('lat','lon'))
-        if prediction is a n array, expects axis as int.
+        If input as np.array, expects axis as tuple of int.
+        If input as xr.DataArray, expects axis as tuple of str.
     sampling : tuple, optional
         Sampling for distance_transform_edt, tuple same size as axis
     f2inverse : bool, optional
@@ -221,7 +233,12 @@ def compute_proximity_distance(prediction, target, eThresh, relation='gt', axis=
     if prediction.shape != target.shape:
         raise ValueError(f"Shape mismatch: {prediction.shape} vs {target.shape}")
 
-    # Check sure axis is a tuple
+    # -------------------------------
+    # Make sure axis is a tuple in correct form for np.array or xr.DataArray
+    if isinstance(axis, type(None)):
+        if isinstance(target, xr.DataArray): axis = target.dims
+        if not isinstance(target, xr.DataArray): axis = tuple(int(x) for x in np.arange(target.ndim))
+    
     if isinstance(axis, int) or isinstance(axis, str):
         axis = (axis,)
     
@@ -232,13 +249,28 @@ def compute_proximity_distance(prediction, target, eThresh, relation='gt', axis=
         axis_ok = 2
     else:
         raise ValueError(f"axis expected (tuple of) str or int, got: {axis}")
+   
+    # If axis is a tuple of str and input is a np.array then can't identify axes
+    if axis_ok == 2 and not isinstance(target, xr.DataArray):
+        raise ValueError(f"Cannot use axis of str with a np.array, need int values.")
 
+    # If axis is a tuple of str and input is xr.DataArray, then check all dims exist
+    if axis_ok == 2 and isinstance(target, xr.DataArray):
+        dim_positions = []
+        for target_dim in axis:
+            try:
+                dim_positions.append(target.dims.index(target_dim))
+            except ValueError:
+                raise ValueError(f"Dimension '{target_dim}' not found in {target.dims}.")
+
+    # If axis is a tuple of int and input is xr.DataArray, convert to tuple of str
     if axis_ok==1 and isinstance(prediction, xr.DataArray):
         try:
             dimensions = tuple(prediction.dims[i] for i in axis)
         except IndexError:
             raise ValueError(f"Cannot match all values in axis {axis}. Target has only {len(target.dims)} dimensions.")
         axis = dimensions
+    # -------------------------------
 
     # False/True fields
     prediction_masked = make_mask(prediction, eThresh, relation=relation)
@@ -310,7 +342,7 @@ def compute_sfss2D(prediction, target, eThresh, relation='gt', window=1):
     Spatial Fractional Skill Score
     Threshold based binary fields [0, 1] = [none-event, event]
     Compute for each 2d image separately e.g. for each timestep
-    Assumes SFSS computed on 2d fields defined by final 2 dimensions in array
+    ***Assumes SFSS computed on 2d fields defined by final 2 dimensions in array***
     e.g. [ time, lat, lon ] => compute for lat/lon fields at each timestep.
     
     Roberts, N. M., & Lean, H. W. (2008). Scale-Selective Verification of 
@@ -322,6 +354,8 @@ def compute_sfss2D(prediction, target, eThresh, relation='gt', window=1):
     ----------
     prediction : numpy.ndarray | xr.DataArray
         N-dimensional array Prediction (same shape as target)
+        ***Assumes spatial dimensions are final 2 in array***
+        e.g. [time, member, lat, lon]
     target : numpy.ndarray | xr.DataArray
         N-dimensional array Target (same shape as prediction)
     eThresh : float
