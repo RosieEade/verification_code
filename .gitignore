@@ -1,0 +1,9 @@
+# --- OS Metadata ---
+Thumbs.db
+
+# --- Python Cache ---
+__pycache__/
+**/__pycache__/
+
+# --- Testing Directory ---
+**/testing/
