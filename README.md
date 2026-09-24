@@ -10,5 +10,10 @@ Distribution based assessments for sets of predictions and target e.g. histogram
 ## object_based
 Object based assessments for sets of paired predictions and target e.g. for events where the climate variable is beyond a given threshold.
 
+## ensembles
+Ensembles based assessments for sets of ensemble predictions paired with 
+single realisations of the target (as for observations). 
+
+
 # License
 Copyright © 2026, Klima consulting. Released under the MIT License.
