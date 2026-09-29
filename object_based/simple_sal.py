@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
+
 """
 Code to compute SAL score for pairs of lat/lon gridded fields:
 Prediction and Target (truth)
@@ -16,6 +19,7 @@ of SAL scores computed over multiple timesteps
 
 Copyright (c) 2026 Klima consulting
 Author: Rosie Eade
+License: MIT (see LICENSE)
  
 """
 
@@ -36,6 +40,8 @@ import matplotlib.pyplot as plt
 # -------------------------------------------------------------------------------------
 # Computation Code
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def calculate_error_nparray(arr0, arr1, axis=0, typeerror='rmse'):
     """
     Calculate (rms) error between 2 N-dimensional numpy arrays
@@ -89,6 +95,8 @@ def calculate_error_nparray(arr0, arr1, axis=0, typeerror='rmse'):
     return output_error
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def calculate_pearsoncorr_nparray(arr0, arr1, axis=0):
     """
     Calculate Pearson correlation between 2 N-dimensional numpy arrays
@@ -138,6 +146,8 @@ def calculate_pearsoncorr_nparray(arr0, arr1, axis=0):
     return correlations
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def calc_3dradius_sal(sal_vals, percentile: float | None = None):
     """
     Compute the 3d radii based on the 3 elements of the SAL score.
@@ -197,6 +207,8 @@ def calc_3dradius_sal(sal_vals, percentile: float | None = None):
     else: return np.nanpercentile(rad_all,percentile)
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def compute_sal_xr(
     prediction_xr, 
     target_xr, 
@@ -426,6 +438,8 @@ def compute_sal_xr(
     return sal_all
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def compute_sal(
     prediction, 
     target, 
@@ -870,6 +884,8 @@ def compute_sal(
 # -------------------------------------------------------------------------------------
 # Plotting Code
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def plot_sal_objects_map_contourf(
     pred_data,
     targ_data,
@@ -963,6 +979,8 @@ def plot_sal_objects_map_contourf(
     plt.close()
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def plot_input_and_objects_map(
     pred_data, 
     targ_data, 
@@ -1133,6 +1151,8 @@ def plot_input_and_objects_map(
     plt.close()
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def plot_3d_sal_scatter(
     sal_vals, 
     filepath='figure.png', 
@@ -1254,6 +1274,8 @@ def plot_3d_sal_scatter(
 # -------------------------------------------------------------------------------------
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def plot_matrix_1d_sal_pdf(
     sal_list, 
     color_list, 
@@ -1408,6 +1430,8 @@ def plot_matrix_1d_sal_pdf(
     plt.close('all')
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def plot_1d_sal_pdf(
     data_list, 
     ax1, 
@@ -1666,6 +1690,8 @@ def plot_1d_sal_pdf(
 
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def plot_matrix_2d_sal_pdf(
     sal1, 
     sal2=None, 
@@ -1810,6 +1836,8 @@ def plot_matrix_2d_sal_pdf(
     plt.close('all')
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def plot_2d_sal_pdf(
     x, 
     y, 

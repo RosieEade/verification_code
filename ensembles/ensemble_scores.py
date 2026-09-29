@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
+
 """
 Code to compute ensemble and probabilistic based scores for pairs of gridded fields:
 Prediction and Target (truth) in the form of numpy.ndarray or xr.DataArray
@@ -11,9 +14,9 @@ Prediction and Target (truth) in the form of numpy.ndarray or xr.DataArray
     compute_mssr
     - compute the mean squared skill ratio (MSSR)
 
-
 Copyright (c) 2026 Klima consulting
 Author: Rosie Eade
+License: MIT (see LICENSE)
  
 """
 
@@ -25,6 +28,8 @@ import xarray as xr
 # ---------------------------------------------------------------------------------------
 # Computation Code
 # ---------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def make_mask(input, eThresh, relation):
     """
     Convert input to bool field based on occurence or non-occurence
@@ -84,6 +89,8 @@ def make_mask(input, eThresh, relation):
 
 
 # ---------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def compute_crps(prediction, target, member_dim, axis=None, fair_est=True):
 
     """
@@ -223,6 +230,8 @@ def compute_crps(prediction, target, member_dim, axis=None, fair_est=True):
 
 
 # ---------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def compute_bs(prediction, target, member_dim, eThresh, relation, axis=None, fair_est=True):
 
     """
@@ -294,6 +303,8 @@ def compute_bs(prediction, target, member_dim, eThresh, relation, axis=None, fai
 
 
 # ---------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def compute_mssr(prediction, target, member_dim, axis=None):
 
     """

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
+
 """
 Code to compute verification skill metrics
 Prediction vs Target (truth)
@@ -16,6 +19,7 @@ Prediction vs Target (truth)
 
 Copyright (c) 2026 Klima consulting
 Author: Rosie Eade
+License: MIT (see LICENSE)
  
 """
 
@@ -25,6 +29,8 @@ import xarray as xr
 # -------------------------------------------------------------------------------------
 # Computation Code
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def calculate_error_nparray(arr0, arr1, axis=0, typeerror='rmse'):
     """
     Calculate (rms) error between 2 N-dimensional numpy arrays
@@ -78,6 +84,8 @@ def calculate_error_nparray(arr0, arr1, axis=0, typeerror='rmse'):
     return output_error
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def calculate_pearsoncorr_nparray(arr0, arr1, axis=0):
     """
     Calculate Pearson correlation between 2 N-dimensional numpy arrays
@@ -127,7 +135,8 @@ def calculate_pearsoncorr_nparray(arr0, arr1, axis=0):
     return correlations
 
 # -------------------------------------------------------------------------------------
-
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def xr_spearman_corr(da_a, da_b, dim=None):
     """
     Spearman rank correlation between two DataArrays, mirroring xr.corr's API.

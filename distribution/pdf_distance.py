@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
+
 """
 Code to compare probablity distribution functions (pdf) of
 lat/lon gridded fields using distance metrics and skill scores:
@@ -17,6 +20,7 @@ distributions
 
 Copyright (c) 2026 Klima consulting
 Author: Rosie Eade
+License: MIT (see LICENSE)
  
 """
 
@@ -29,6 +33,8 @@ import xarray as xr
 # -------------------------------------------------------------------------------------
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def calc_hist_metrics_nparray(
     arr0, 
     arr1, 
@@ -187,6 +193,8 @@ def calc_hist_metrics_nparray(
     return jsd_out, pss_out, wdh_out
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def calc_hist_metrics_xr(
     target_xr, 
     prediction_xr, 
@@ -367,6 +375,8 @@ def calc_hist_metrics_xr(
     return dist_out_xr
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def calc_pdf_metric_nparray(
     arr0, 
     arr1, 
@@ -751,6 +761,8 @@ def calc_pdf_metric_nparray(
 
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def calc_pdf_metric_xr(
     target_xr, 
     prediction_xr, 

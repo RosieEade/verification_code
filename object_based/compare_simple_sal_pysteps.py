@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
+
 '''
 Example comparison of simple_sal to pysteps version:
 https://pysteps.readthedocs.io/en/latest/generated/pysteps.verification.salscores.sal.html
@@ -10,6 +13,7 @@ https://pysteps.readthedocs.io/en/latest/generated/pysteps.verification.salscore
 
 Copyright (c) 2026 Klima consulting
 Author: Rosie Eade
+License: MIT (see LICENSE)
 
 '''
 

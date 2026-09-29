@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
+
 """
 Code to compare probablity distribution functions (pdf) of
 lat/lon gridded fields using histogram and qq plots:
@@ -7,9 +10,9 @@ Prediction and Target (truth)
     function()
     - description
 
-
 Copyright (c) 2026 Klima consulting
 Author: Rosie Eade
+License: MIT (see LICENSE)
  
 """
 
@@ -29,6 +32,8 @@ import matplotlib.pyplot as plt
 # -------------------------------------------------------------------------------------
 # Plotting Code
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def plot_1dpdf(
     data_list, 
     ax1, 
@@ -214,6 +219,8 @@ def plot_1dpdf(
         print(f"Warning: Nonfinite values removed from input data before plotting")
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def plot_qq(
     target,
     prediction, 
@@ -285,6 +292,8 @@ def plot_qq(
     ax1.set_xlim(left=axmin, right=axmax)
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def plot_matrix1_1dpdf(
     data_list, 
     color_list, 
@@ -379,6 +388,8 @@ def plot_matrix1_1dpdf(
     plt.close('all')
 
 # -------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def plot_matrix1_qq(
     target, 
     prediction, 

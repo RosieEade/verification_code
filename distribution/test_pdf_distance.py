@@ -1,10 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 
 '''
-Created on June 2026
-@author Rosie Eade
 
 - test pdf_distance.py: distance based scores on random normal datasets
   test sensitivity to number of bins (nbins)
+
+Copyright (c) 2026 Klima consulting
+Author: Rosie Eade
+License: MIT (see LICENSE)
 
 '''
 

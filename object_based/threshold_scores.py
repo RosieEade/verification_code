@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
+
 """
 Code to compute threshold based scores for pairs of gridded fields:
 Prediction and Target (truth)
@@ -12,9 +15,9 @@ Prediction and Target (truth)
     compute_sfss2D
     - compute the spatial fractional skill score
 
-
 Copyright (c) 2026 Klima consulting
 Author: Rosie Eade
+License: MIT (see LICENSE)
  
 """
 
@@ -26,6 +29,8 @@ import xarray as xr
 # ---------------------------------------------------------------------------------------
 # Computation Code
 # ---------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def make_mask(input, eThresh, relation='gt'):
     
     comparison_map = {
@@ -43,6 +48,8 @@ def make_mask(input, eThresh, relation='gt'):
     return comparison_map[relation](input, eThresh) & np.isfinite(input)
 
 # ---------------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def compute_ets(prediction, target, eThresh, relation='gt', axis=None, TSopt=False, print_ct=False):
     '''
     Equitable Threat Score (ETS)
@@ -182,6 +189,8 @@ def compute_ets(prediction, target, eThresh, relation='gt', axis=None, TSopt=Fal
 
 
 # ----------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def compute_proximity_distance(prediction, target, eThresh, relation='gt', axis=('lat','lon'), sampling=None, f2inverse=False):
     '''
     Proximity distance
@@ -336,6 +345,8 @@ def compute_proximity_distance(prediction, target, eThresh, relation='gt', axis=
     return prediction_mindistance
 
 # ----------------------------------------------------------------------------
+# SPDX-FileCopyrightText: 2026 Klima consulting
+# SPDX-License-Identifier: MIT
 def compute_sfss2D(prediction, target, eThresh, relation='gt', window=1):
 
     '''
