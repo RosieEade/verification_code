@@ -32,6 +32,30 @@ import xarray as xr
 # SPDX-FileCopyrightText: 2026 Klima consulting
 # SPDX-License-Identifier: MIT
 def make_mask(input, eThresh, relation='gt'):
+   """
+    Convert input array into a boolean mask based on threshold eThresh and relation.
+
+    Parameters
+    ----------
+    input : numpy.ndarray | xr.DataArray
+        Array of floats
+    eThresh : float | numpy.ndarray | xr.DataArray
+        Event threshold to define binary event
+        If an array, this should match shape and type of input,
+        or follow numpy broadcasting rules.
+    relation : str
+        Relationship of event to threshold: 'gt', 'ge', 'lt', 'le', 'eq', 'ne'
+
+    Return
+    -----------
+    numpy.ndarray | xr.DataArray
+        Boolean version of input, same format.
+
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
+    License: MIT (see LICENSE)
+
+   """
     
     comparison_map = {
         'gt': lambda x, t: x > t,
@@ -92,6 +116,10 @@ def compute_ets(prediction, target, eThresh, relation='gt', axis=None, TSopt=Fal
     -----------
     numpy.ndarray | xr.DataArray
         Array of ETS (or Threat Score), same format as input target
+
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
+    License: MIT (see LICENSE)
     
     '''
 
@@ -229,6 +257,10 @@ def compute_proximity_distance(prediction, target, eThresh, relation='gt', axis=
     ------
     numpy.ndarray | xr.DataArray
         Array of proximity distance, same format as input target
+
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
+    License: MIT (see LICENSE)
     
     '''
 
@@ -381,6 +413,10 @@ def compute_sfss2D(prediction, target, eThresh, relation='gt', window=1):
     ------
     numpy.ndarray | xr.DataArray
         Array of SFSS, same format as input target
+
+    Copyright (c) 2026 Klima consulting
+    Author: Rosie Eade
+    License: MIT (see LICENSE)
     
     '''
     
